@@ -20,7 +20,15 @@ INF = 10**8
 AI = 2
 PLAYER = 1
 
-DEPTH_LIMIT = 3
+SIDE_TABLE = {
+    PLAYER: "플레이어",
+    AI: "AI",
+}
+
+# 2: 적당, 빠름
+# 3: 잘함, 적당
+# 4: 겁나잘함, 느림
+DEPTH_LIMIT = 2
 
 cam_x = UNIT
 cam_y = UNIT
@@ -82,6 +90,11 @@ def make_move(x, y, side):
     board[y][x] = side
     stones.add((x, y))
 
+# make_move(7, 7, PLAYER)
+# make_move(6, 6, PLAYER)
+# make_move(7, 8, AI)
+# make_move(6, 8, AI)
+
 def unmake_move(x, y):
     board[y][x] = 0
     stones.discard((x, y))
@@ -112,6 +125,17 @@ def get_moves():
                 moves.add((nx, ny))
     return moves
 
+def score_move(move, side):
+    x, y = move
+    make_move(x, y, side)
+    score = evaluate_pattern(x, y)
+    unmake_move(x, y)
+    return score
+
+def order_moves(moves, maximizing_player):
+    side = AI if maximizing_player else PLAYER
+    return sorted(moves, key=lambda move: score_move(move, side), reverse=not maximizing_player)
+
 def get_pattern(x, y, side, dir):
     pattern = ""
     for i in range(-1, 5):
@@ -125,31 +149,40 @@ def get_pattern(x, y, side, dir):
                 pattern += "."
     return pattern
 
+def evaluate_pattern(x, y):
+    score = 0
+    side = board[y][x]
+    # 4방향만 해도 됨 (역방향 제외)
+    for i in range(4):
+        pattern = get_pattern(x, y, side, i)
+        if pattern in patterns:
+            score = max(score, patterns[pattern])
+        if pattern in win_patterns:
+            score = INF
+            break
+    return score
+
 def evaluate_board():
     scores = {1: 0, 2: 0}
     for x, y in stones:
         side = board[y][x]
-        score = 0
-        # 4방향만 해도 됨 (역방향 제외)
-        for i in range(4):
-            pattern = get_pattern(x, y, side, i)
-            if pattern in patterns:
-                score = max(score, patterns[pattern])
-            if pattern in win_patterns:
-                score = INF
-                break
+        score = evaluate_pattern(x, y)
         scores[side] += score
-
+        if score == INF:
+            break
     return scores[1], scores[2]
 
 def alphabeta(depth, alpha, beta, maximizing_player):
     if depth == 0:
         return evaluate(), None
 
+    moves = get_moves()
+    moves = order_moves(moves, maximizing_player)
+
     if maximizing_player:
         best_score = -INF
         best_move = None
-        for x, y in get_moves():
+        for x, y in moves:
             make_move(x, y, AI)
             score, _ = alphabeta(depth-1, alpha, beta, False)
             unmake_move(x, y)
@@ -163,7 +196,7 @@ def alphabeta(depth, alpha, beta, maximizing_player):
     else:
         best_score = INF
         best_move = None
-        for x, y in get_moves():
+        for x, y in moves:
             make_move(x, y, PLAYER)
             score, _ = alphabeta(depth-1, alpha, beta, True)
             unmake_move(x, y)
@@ -184,6 +217,14 @@ def evaluate():
     player_score, ai_score = evaluate_board()
     return ai_score-player_score*1.5
 
+def check_win():
+    for x, y in stones:
+        side = board[y][x]
+        score = evaluate_pattern(x, y)
+        if score == INF:
+            print(f"{SIDE_TABLE[side]} WIN")
+            break
+
 while True:
     mouse_pos = pygame.mouse.get_pos()
     mouse_x = round((mouse_pos[0]-cam_x)/UNIT)
@@ -202,6 +243,7 @@ while True:
                         x, y = find_move()
                         make_move(x, y, AI)
                         last_x, last_y = x, y
+                        check_win()
 
     dt = clock.tick(60)/(1000/60)
 
@@ -211,6 +253,6 @@ while True:
         pygame.draw.circle(screen, "#222222", [UNIT+mouse_x*UNIT, UNIT+mouse_y*UNIT], UNIT//2, 2)
 
     if last_x != -1 and last_y != -1:
-        pygame.draw.circle(screen, "#ffb330", [UNIT+last_x*UNIT, UNIT+last_y*UNIT], UNIT//2, 2)
+        pygame.draw.circle(screen, "#ffb330", [UNIT+last_x*UNIT, UNIT+last_y*UNIT], UNIT//2, 4)
 
     pygame.display.update()
