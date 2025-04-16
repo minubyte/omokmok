@@ -211,6 +211,8 @@ def alphabeta(depth, alpha, beta, maximizing_player):
 @timer
 def find_move():
     _, best_move = alphabeta(DEPTH_LIMIT, -INF, INF, True)
+    if best_move == None:
+        return 0, 0
     return best_move
 
 def evaluate():
