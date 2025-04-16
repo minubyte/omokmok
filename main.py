@@ -20,7 +20,7 @@ INF = 10**8
 AI = 2
 PLAYER = 1
 
-DEPTH_LIMIT = 4
+DEPTH_LIMIT = 3
 
 cam_x = UNIT
 cam_y = UNIT
